@@ -57,6 +57,35 @@
             return ret.length == 0 ? 'Complete!' : ret.sort().join(delimiter);
         }
 
+        this.viewRestByTable = function() {
+            var rest    = this.itemMaster.findRest(this.histories),
+                table   = $("<table>").attr("border",1),
+                colspan = 1,
+                trlist  = [];
+
+            for (var key in rest) {
+                if ( rest[key].length > colspan ) {
+                    colspan = rest[key].length;
+                }
+                var tr = $("<tr>");
+                for (var i=0; i < rest[key].length; i++) {
+                    tr.append(
+                        $("<td>").text(rest[key][i])
+                    );
+                }
+                trlist.push(tr)
+            }
+            table.append(
+                $("<tr>").append(
+                    $("<th>")
+                    .attr("colspan", colspan)
+                    .text("未習得！")
+                )
+            );
+            table.append(trlist);
+            return table;
+        };
+
         /**
          * ガチャItemの管理
          * @class ItemMaster
@@ -67,7 +96,7 @@
              * @method init
              */
             this.init = function() {
-                this.itemTypes = {
+                this.items = {
                     normal: {
                         rate:1,
                         range:[0,100],
@@ -80,11 +109,34 @@
                     }
                 };
                 for(i=97;i<123;i++){
-                    this.itemTypes.normal.list.push(String.fromCharCode(i));
+                    this.items.normal.list.push(String.fromCharCode(i));
                 }
-                this.itemTypes.rare.list = ["A","B","C"];
-                this.itemTypes = decideRateRange(this.itemTypes);
+                this.items.rare.list = ["A","B","C"];
+                this.items = decideRateRange(this.items);
             }
+
+            this.findRest = function(histories) {
+                var list  = [],
+                    item,
+                    retObj = {};
+                for ( r in this.items ) {
+                    list = [];
+                    for (var i=0; i < this.items[r]["list"].length;i++) {
+                        item = this.items[r]["list"][i];
+                        if( histories.indexOf(item) == -1 ) {
+                            list.push(item);
+                        } else {
+                            list.push("◯");
+                        }
+                    }
+                    retObj[r] = list;
+                }
+                return retObj;
+            };
+
+            this.getItems = function(){
+                return this.items;
+            };
 
             /**
              * 対象となるItemリスト取得に失敗した時用
@@ -92,7 +144,7 @@
              * @return array
              */
             this.normalList = function() {
-                return this.itemTypes["normal"]["list"];
+                return this.items["normal"]["list"];
             }
 
             /**
@@ -101,8 +153,8 @@
              */
             this.toAllList = function(){
                 retList = [];
-                for( r in this.itemTypes ) {
-                    retList = retList.concat(this.itemTypes[r]["list"]);
+                for( r in this.items ) {
+                    retList = retList.concat(this.items[r]["list"]);
                 }
                 return retList;
             }
@@ -113,11 +165,11 @@
              * @throws 
              */
             this.getTargetList = function(rate) {
-                for (i  in this.itemTypes) {
-                    min = this.itemTypes[i]["range"][0];
-                    max = this.itemTypes[i]["range"][1];
+                for (i  in this.items) {
+                    min = this.items[i]["range"][0];
+                    max = this.items[i]["range"][1];
                     if ( min <= rate && rate < max ) {
-                        return this.itemTypes[i]["list"];
+                        return this.items[i]["list"];
                     }
                 }
                 throw "INVALID RATE";
@@ -126,32 +178,32 @@
             /**
              * レア度を0~100のレンジに落としこむ
              * @method decideRateRange
-             * @param {object} itemTypes
-             * @return {object} itemTypes
+             * @param {object} items
+             * @return {object} items
              */
-            var decideRateRange = function(itemTypes){
-                var rateUnit = solveRateUnitEquation(itemTypes),
+            var decideRateRange = function(items){
+                var rateUnit = solveRateUnitEquation(items),
                     max = 100,
                     min = 0;
-                for (i in itemTypes) {
-                    max = rateUnit / itemTypes[i]["rate"] + min;
-                    itemTypes[i]["range"] = [min, max];
+                for (i in items) {
+                    max = rateUnit / items[i]["rate"] + min;
+                    items[i]["range"] = [min, max];
                     min = max;
                 }
-                return itemTypes;
+                return items;
             }
 
             /**
              * レア度を0~100に落としこんだ際の単位
              * @method solveRateUnitEquation
-             * @param {object} itemTypes
-             * @return {object} itemTypes
+             * @param {object} items
+             * @return {object} items
              */
-            var solveRateUnitEquation = function(itemTypes) {
+            var solveRateUnitEquation = function(items) {
                 var rateUnit = 0,
                     sum = 0;
-                for( r in itemTypes ) {
-                    sum += 1 / itemTypes[r]["rate"];
+                for( r in items ) {
+                    sum += 1 / items[r]["rate"];
                 }
                 rateUnit = 100 / sum;
                 return rateUnit;
@@ -159,6 +211,29 @@
 
             this.init();
         };
+
+        function ItemCounter(item) {
+            this.itemToCountMap = {};
+            this.init = function(item){
+                for (var i=0; i < item.length; i++) {
+                    this.itemToCountMap[item[i]] = 0;
+                }
+            }
+
+            this.has = function(str) {
+                return typeof this.itemToCountMap[str] !== "undefined";
+            };
+
+            this.plus = function(str) {
+                this.itemToCountMap[str]++;
+            };
+
+            this.getMap = function(){
+                return this.itemToCountMap;
+            };
+
+            this.init(item);
+        }
 
     };
 
@@ -169,6 +244,7 @@
     $("#start").click(function(){
         $("#result").text(Gacha.draw());
         $("#histories").html(Gacha.viewHistories());
-        $("#rest").html(Gacha.viewRest());
+        $("#rest").html(Gacha.viewRestByTable());
+//        $("#rest").html(Gacha.viewRest());
     });
 }());
